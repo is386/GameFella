@@ -26,7 +26,6 @@ type GameBoy struct {
 	timer          *Timer
 	buttons        *Buttons
 	cart           *cart.Cartridge
-	speed          int
 	isCGB          bool
 	isDMGCart      bool
 	cyc            int
@@ -34,26 +33,23 @@ type GameBoy struct {
 }
 
 func NewGameBoy(rom string, bootPath string, scale int, debug bool) *GameBoy {
-	gb := &GameBoy{debug: debug, running: true, speed: 1}
-
+	gb := &GameBoy{debug: debug, running: true}
 	gb.mmu = NewMMU(gb)
 	gb.screen = NewScreen(scale)
 	gb.ppu = NewPPU(gb)
 	gb.apu = apu.NewAPU()
 	gb.timer = NewTimer(gb)
 	gb.buttons = NewButtons(gb)
-
 	gb.loadBootRom(bootPath)
 	gb.loadCart(rom)
+
 	if !gb.isCGB {
 		gb.isDMGCart = gb.cart.IsDMGCart()
 	}
+
 	gb.isCGB = !gb.isDMGCart || gb.isCGB
-
-	gb.cpu = NewCPU(gb, gb.isCGB, bootPath != "")
-
+	gb.cpu = NewCPU(gb, gb.isCGB, bootPath != "", debug)
 	gb.setTitle(60)
-
 	return gb
 }
 
@@ -112,32 +108,14 @@ func (gb *GameBoy) checkBoot() {
 	}
 }
 
-func (gb *GameBoy) changeSpeed() {
-	if gb.mmu.prepareSpeed == 1 {
-		gb.mmu.prepareSpeed = 0
-		if gb.speed == 1 {
-			gb.speed = 0
-		} else {
-			gb.speed = 1
-		}
-		gb.cpu.halted = false
-	}
-}
-
 func (gb *GameBoy) update() {
 	for gb.cyc < CPS {
-		cyc := 1
-		if !gb.cpu.halted {
-			if gb.debug {
-				gb.cpu.print()
-			}
-			cyc = gb.cpu.execute(gb.speed + 1)
-		}
+		cyc := gb.cpu.execute()
 		gb.cyc += cyc
 		gb.ppu.update(cyc)
 		gb.timer.update(cyc)
+		gb.cpu.checkInterrupts()
 		gb.apu.Update(cyc)
-		gb.cpu.checkIME()
 	}
 	gb.checkBoot()
 	gb.buttons.update()
@@ -152,10 +130,4 @@ func (gb *GameBoy) close() {
 
 func (gb *GameBoy) setTitle(fps int) {
 	gb.screen.win.SetTitle(fmt.Sprintf("GameFella | %s | %2v FPS", gb.cart.GetName(), fps))
-}
-
-func (gb *GameBoy) printSerialLink() {
-	if !gb.debug {
-		fmt.Printf("%c", gb.mmu.readHRAM(COMM1))
-	}
 }

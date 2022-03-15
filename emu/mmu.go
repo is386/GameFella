@@ -54,7 +54,6 @@ type MMU struct {
 	bootEnabled      bool
 	bootJustDisabled bool
 	hdmaActive       bool
-	prepareSpeed     uint8
 }
 
 func NewMMU(gb *GameBoy) *MMU {
@@ -165,9 +164,9 @@ func (m *MMU) readByte(addr uint16) uint8 {
 			return m.gb.buttons.readByte(addr)
 		}
 		if addr >= 0xFF10 && addr <= 0xFF26 {
-			m.gb.apu.ReadByte(addr)
+			return m.gb.apu.ReadByte(addr)
 		} else if addr >= 0xFF30 && addr <= 0xFF3F {
-			m.gb.apu.ReadByte(addr)
+			return m.gb.apu.ReadByte(addr)
 		}
 		return m.readHRAM(uint8(addr - 0xFF00))
 	}
@@ -226,9 +225,7 @@ func (m *MMU) writeHRAM(reg uint8, val uint8) {
 		m.gb.buttons.writeByte(0xFF00, val)
 
 	case COMM2:
-		if val == 0x81 {
-			m.gb.printSerialLink()
-		}
+		return
 
 	case DIV:
 		m.gb.timer.resetDivCyc()
@@ -268,7 +265,7 @@ func (m *MMU) writeHRAM(reg uint8, val uint8) {
 
 	case KEY1:
 		if m.gb.isCGB {
-			m.prepareSpeed = bits.Value(val, 0)
+			m.gb.cpu.prepareSpeed = int(bits.Value(val, 0))
 		}
 
 	case BGPI:
@@ -318,7 +315,7 @@ func (m *MMU) readHRAM(reg uint8) uint8 {
 		return m.wramBank
 
 	case KEY1:
-		return uint8(m.gb.speed<<7) | m.prepareSpeed
+		return uint8(m.gb.cpu.speed<<7) | uint8(m.gb.cpu.prepareSpeed)
 
 	case BGPI:
 		return m.bgCRAM.index

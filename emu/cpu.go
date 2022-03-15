@@ -23,15 +23,16 @@ var (
 )
 
 type CPU struct {
-	gb                      *GameBoy
-	reg                     *Registers
-	flags                   *Flags
-	pc, sp                  uint16
-	halted, ime, imePending bool
+	gb                             *GameBoy
+	reg                            *Registers
+	flags                          *Flags
+	pc, sp                         uint16
+	halted, ime, imePending, debug bool
+	prepareSpeed, speed            int
 }
 
-func NewCPU(gb *GameBoy, isCGB bool, bootEnabled bool) *CPU {
-	c := &CPU{gb: gb, reg: NewRegisters(isCGB), flags: NewFlags(), sp: SP}
+func NewCPU(gb *GameBoy, isCGB bool, bootEnabled bool, debug bool) *CPU {
+	c := &CPU{gb: gb, reg: NewRegisters(isCGB), flags: NewFlags(), sp: SP, debug: debug}
 	if !bootEnabled {
 		c.pc = 0x100
 	}
@@ -78,24 +79,28 @@ func (c *CPU) decode(opcode uint8) (func(*CPU), int) {
 	return INSTRUCTIONS[opcode], CYCLES[opcode]
 }
 
-func (c *CPU) execute(speed int) int {
+func (c *CPU) execute() int {
+	cyc := 4
+	if c.halted {
+		return cyc / (c.speed + 1)
+	}
+	if c.debug {
+		c.print()
+	}
 	opcode := c.fetch()
 	instr, cyc := c.decode(opcode)
 	instr(c)
-	return (cyc * 4) / speed
+	return (cyc * 4) / (c.speed + 1)
 }
 
 func (c *CPU) print() {
-	// fmt.Printf("A: %02X F: %02X B: %02X C: %02X D: %02X E: %02X H: %02X L: %02X SP: %04X PC: 00:%04X (%02X %02X %02X %02X)\n",
-	// c.reg.A, c.flags.getF(), c.reg.B, c.reg.C, c.reg.D, c.reg.E, c.reg.H, c.reg.L,
-	// c.sp, c.pc, c.readByte(c.pc), c.readByte(c.pc+1), c.readByte(c.pc+2), c.readByte(c.pc+3))
 	fmt.Printf("AF: %04X BC: %04X DE: %04X HL: %04X SP: %04X PC: %04X ROM: %02d (%02X %02X %02X %02X)\n",
 		c.reg.getAF(c.flags.getF()), c.reg.getBC(), c.reg.getDE(), c.reg.getHL(),
 		c.sp, c.pc, c.gb.cart.GetRomBank(), c.readByte(c.pc), c.readByte(c.pc+1), c.readByte(c.pc+2), c.readByte(c.pc+3))
 	fmt.Scanln()
 }
 
-func (c *CPU) checkIME() {
+func (c *CPU) checkInterrupts() {
 	if c.imePending {
 		c.ime = true
 		c.imePending = false
@@ -2394,8 +2399,17 @@ func halt(c *CPU) {
 
 func stop(c *CPU) {
 	c.halted = true
-	if c.gb.isCGB {
-		c.gb.changeSpeed()
+	if !c.gb.isCGB {
+		return
+	}
+	if c.prepareSpeed == 1 {
+		c.prepareSpeed = 0
+		if c.speed == 1 {
+			c.speed = 0
+		} else {
+			c.speed = 1
+		}
+		c.halted = false
 	}
 	c.fetch()
 }

@@ -2,9 +2,8 @@ package main
 
 // TODO:
 // - Pass blarggs timing tests
-// - Pass DMG and CBG sound tests
-// - Figure out minor HDMA bugs
-// - Figure out why Oracle of Seasons doesn't work
+// - Pass DMG and CGB sound tests
+// - Implement NR52
 // - Super GameBoy
 // - Save States
 // - Rewind
