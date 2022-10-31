@@ -30,7 +30,7 @@ var (
 	NR51 uint8 = 0x25
 	NR52 uint8 = 0x26
 
-	FPS         = 120
+	FPS         = 60
 	SAMPLE_RATE = 44100
 	SAMPLES     = 8192
 	CLOCK_SPEED = 4194304
