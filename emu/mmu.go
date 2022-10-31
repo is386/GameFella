@@ -164,9 +164,9 @@ func (m *MMU) readByte(addr uint16) uint8 {
 			return m.gb.buttons.readByte(addr)
 		}
 		if addr >= 0xFF10 && addr <= 0xFF26 {
-			return m.gb.apu.ReadByte(addr)
+			m.gb.apu.ReadByte(addr)
 		} else if addr >= 0xFF30 && addr <= 0xFF3F {
-			return m.gb.apu.ReadByte(addr)
+			m.gb.apu.ReadByte(addr)
 		}
 		return m.readHRAM(uint8(addr - 0xFF00))
 	}
